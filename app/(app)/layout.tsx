@@ -1,7 +1,14 @@
-import "@/app/globals.css";
 import Nav from "@/components/Nav";
+import { authOptions } from "@/lib/auth";
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+     const session = await getServerSession(authOptions);
+
+  if (!session) {
+    redirect("/login");
+  }
     return (
         <div className="min-h-screen bg-gray-50">
             <Nav />

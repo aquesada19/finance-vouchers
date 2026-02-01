@@ -49,7 +49,6 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white text-slate-900">
-            <Nav />
             <main className="mx-auto max-w-6xl p-4 md:p-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
                     <div>
