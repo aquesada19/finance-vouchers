@@ -53,24 +53,30 @@ export default function Select<T extends { value: string; label: string }>({
             const pop = popRef.current;
             if (!btn) return;
             const btnRect = btn.getBoundingClientRect();
-            const popW = (pop && pop.offsetWidth) ? pop.offsetWidth : 220;
+            const scrollY = window.scrollY || window.pageYOffset;
+            const scrollX = window.scrollX || window.pageXOffset;
+            const popW = btnRect.width;
             const popH = (pop && pop.offsetHeight) ? pop.offsetHeight : Math.min(300, options.length * 36 + 24);
             const margin = 8;
 
-            let left = btnRect.left;
-            if (left + popW + margin > window.innerWidth) {
-                left = Math.max(margin, window.innerWidth - popW - margin);
+            let left = btnRect.left + scrollX;
+            let top = btnRect.bottom + scrollY;
+
+            // Evitar que el popup se salga de la pantalla
+            if (left + popW + margin > window.innerWidth + scrollX) {
+                left = Math.max(margin, window.innerWidth + scrollX - popW - margin);
             } else if (left < margin) {
                 left = margin;
             }
-
-            let top = btnRect.bottom + 8;
-            if (top + popH + margin > window.innerHeight && (btnRect.top - popH - margin) > margin) {
-                top = btnRect.top - popH - 8;
+            if (top + popH + margin > window.innerHeight + scrollY && (btnRect.top - popH - margin) > margin) {
+                top = btnRect.top + scrollY - popH - 4;
             }
 
             setPos({ top, left });
-            if (pop) pop.style.maxWidth = `calc(100vw - 32px)`;
+            if (pop) {
+                pop.style.width = `${popW}px`;
+                pop.style.maxWidth = `${popW}px`;
+            }
         }
         if (open) {
             compute();
@@ -107,7 +113,11 @@ export default function Select<T extends { value: string; label: string }>({
             </button>
 
             {open && pos && createPortal(
-                <div ref={popRef} style={{ position: 'absolute', top: `${pos.top}px`, left: `${pos.left}px`, zIndex: 60 }} className="rounded-lg border bg-white p-2 shadow-lg w-56 max-w-[calc(100vw-32px)]">
+                <div
+                    ref={popRef}
+                    style={{ position: 'absolute', top: `${pos.top}px`, left: `${pos.left}px`, zIndex: 1000, width: undefined }}
+                    className="rounded-xl border border-indigo-200 bg-white p-2 shadow-2xl w-auto transition-all duration-150"
+                >
                     <div role="listbox" aria-activedescendant={selected?.value} tabIndex={-1} className="max-h-64 overflow-auto">
                         {options.map((o) => (
                             <button key={o.value} type="button" onClick={() => { onChange(o.value); setOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded ${o.value === value ? 'bg-indigo-600 text-white' : 'text-slate-800 hover:bg-slate-50'}`}>

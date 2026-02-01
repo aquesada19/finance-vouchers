@@ -1,4 +1,10 @@
+
+
 "use client";
+import TransactionsTable from "@/components/TransactionsTable";
+import TransactionDetailModal from "@/components/TransactionDetailModal";
+import TransactionsFilters from "@/components/TransactionsFilters";
+import PageSizeSelect from "@/components/PageSizeSelect";
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,14 +23,13 @@ interface Summary {
 
 export default function DashboardPage() {
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-
+    const [showFilters, setShowFilters] = useState(false);
     const queryClient = useQueryClient();
-
+    const [filters, setFilters] = useState({ dateFrom: "", dateTo: "", merchant: "", minAmount: "", maxAmount: "", categoryId: "", orderBy: "occurredAt", orderDir: "desc" });
     const { data, isLoading: summaryLoading, isFetching: summaryFetching } = useQuery<any, Error>({
         queryKey: ['summary', month],
         queryFn: () => fetch(`/api/summary?month=${month}`).then((r) => r.json())
     });
-
     const syncMutation = useMutation<void, Error, void>({
         mutationFn: async () => {
             await fetch("/api/sync/manual", {
@@ -35,12 +40,40 @@ export default function DashboardPage() {
         },
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['summary', month] })
     });
-
     async function manualSync() {
         await syncMutation.mutateAsync();
     }
 
+    // Estado para tabla y modal de transacciones (debe estar dentro de la función)
+    const [selectedTx, setSelectedTx] = useState<any | null>(null);
+    const [modalOpen, setModalOpen] = useState(false);
+    // Fetch categorías para filtros
+    const { data: categoriesRes } = useQuery<any, Error>({ queryKey: ['categories'], queryFn: () => fetch('/api/categories').then((r) => r.json()) });
+    const categories = categoriesRes?.categories ?? [];
 
+    // Paginación y query de transacciones
+    const [page, setPage] = useState(1);
+    const [take, setTake] = useState(20);
+    // Construir query string para filtros y paginación
+    function buildTxQuery() {
+        const params = new URLSearchParams();
+        params.set("month", month);
+        params.set("take", String(take));
+        params.set("skip", String((page - 1) * take));
+        if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+        if (filters.dateTo) params.set("dateTo", filters.dateTo);
+        if (filters.merchant) params.set("merchant", filters.merchant);
+        if (filters.minAmount) params.set("minAmount", filters.minAmount);
+        if (filters.maxAmount) params.set("maxAmount", filters.maxAmount);
+        if (filters.categoryId) params.set("categoryId", filters.categoryId);
+        if (filters.orderBy) params.set("orderBy", filters.orderBy);
+        if (filters.orderDir) params.set("orderDir", filters.orderDir);
+        return params.toString();
+    }
+    const { data: txData, isLoading: txLoading } = useQuery<any, Error>({
+        queryKey: ['transactions', month, filters, page, take],
+        queryFn: () => fetch(`/api/transactions?${buildTxQuery()}`).then((r) => r.json())
+    });
     const totalBudget = useMemo(() => {
         if (!data) return 0;
         return Object.values(data.budgetByCategory as Record<string, number>).reduce((a: number, b: number) => a + b, 0);
@@ -87,9 +120,69 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
+
+                <TransactionsFilters
+                    filters={filters}
+                    setFilters={setFilters}
+                    categories={categories}
+                    show={showFilters}
+                    setShow={setShowFilters}
+                    month={month}
+                />
+
+
                 <div className="mt-6">
                     {data && <SpendPie spendByCategory={data.spendByCategory} />}
                 </div>
+
+                <div className="mt-6 rounded-2xl border bg-white p-4">
+                    <div className="text-sm font-semibold text-slate-700 mb-2">Transacciones recientes</div>
+                    {txLoading ? (
+                        <div className="flex items-center gap-2 text-sm text-slate-600"><Spinner /> Cargando transacciones…</div>
+                    ) : txData?.transactions?.length ? (
+                        <>
+                            <TransactionsTable
+                                transactions={txData.transactions}
+                                onSelect={tx => { setSelectedTx(tx); setModalOpen(true); }}
+                            />
+                            {/* Paginación */}
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mt-4 border-t pt-4">
+                                <div className="text-xs text-slate-500 mb-2 md:mb-0">Mostrando {((page - 1) * take) + 1} - {Math.min(page * take, txData.total)} de {txData.total}</div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <button
+                                        className="px-4 py-1 rounded-lg bg-white border border-slate-300 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-100 focus:ring-2 focus:ring-indigo-400 disabled:opacity-40 transition"
+                                        disabled={page === 1}
+                                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    >
+                                        ← Anterior
+                                    </button>
+                                    <span className="text-xs font-medium text-slate-700">Página {page}</span>
+                                    <button
+                                        className="px-4 py-1 rounded-lg bg-white border border-slate-300 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-100 focus:ring-2 focus:ring-indigo-400 disabled:opacity-40 transition"
+                                        disabled={page * take >= txData.total}
+                                        onClick={() => setPage(p => p + 1)}
+                                    >
+                                        Siguiente →
+                                    </button>
+                                    <div className="ml-2">
+                                        <PageSizeSelect
+                                            value={take}
+                                            onChange={n => { setTake(n); setPage(1); }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-sm text-slate-600">No hay transacciones.</div>
+                    )}
+                </div>
+
+                <TransactionDetailModal
+                    open={modalOpen}
+                    onClose={() => setModalOpen(false)}
+                    transaction={selectedTx}
+                />
 
                 <div className="mt-6 rounded-2xl border bg-white p-4">
                     <div className="text-sm font-semibold text-slate-700">Presupuestos vs Gasto</div>

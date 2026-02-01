@@ -77,13 +77,12 @@ model MerchantRule {
     name       String
     pattern    String // regex string
     categoryId String
-    priority   Int     @default(100)
     isActive   Boolean @default(true)
 
     user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
     category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
-    @@index([userId, priority])
+    @@unique([userId, name, pattern, categoryId])
 }
 
 model Transaction {

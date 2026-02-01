@@ -11,7 +11,7 @@ export async function GET() {
   const rules = await prisma.merchantRule.findMany({
     where: { userId },
     include: { category: true },
-    orderBy: [{ priority: "asc" }, { name: "asc" }]
+    orderBy: [{ name: "asc" }]
   });
   return Response.json({ rules });
 }
@@ -19,8 +19,7 @@ export async function GET() {
 const CreateSchema = z.object({
   name: z.string().min(1).max(60),
   pattern: z.string().min(1).max(200),
-  categoryId: z.string().min(1),
-  priority: z.number().int().min(1).max(10000).default(100)
+  categoryId: z.string().min(1)
 });
 
 export async function POST(req: Request) {
@@ -36,8 +35,7 @@ export async function POST(req: Request) {
       userId,
       name: p.name,
       pattern: p.pattern,
-      categoryId: p.categoryId,
-      priority: p.priority
+      categoryId: p.categoryId
     }
   });
 

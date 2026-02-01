@@ -5,10 +5,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MonthPicker from "@/components/MonthPicker";
 import Spinner from "@/components/Spinner";
 import Select from "@/components/Select";
+import TagInput from "@/components/TagInput";
 
 interface Category { id: string; name: string }
 interface Budget { id: string; amount: number; currency: string; category: Category; categoryId: string; month: string }
-interface Rule { id: string; name: string; pattern: string; priority: number; category: Category; categoryId: string }
+interface Rule { id: string; name: string; pattern: string; category: Category; categoryId: string }
 
 export default function BudgetsClient() {
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -25,9 +26,8 @@ export default function BudgetsClient() {
 
     const [newCat, setNewCat] = useState("");
     const [ruleName, setRuleName] = useState("");
-    const [rulePattern, setRulePattern] = useState("");
+    const [ruleTags, setRuleTags] = useState<string[]>([]);
     const [ruleCategoryId, setRuleCategoryId] = useState("");
-    const [rulePriority, setRulePriority] = useState(100);
 
     const [savingMap, setSavingMap] = useState<Record<string, boolean>>({});
 
@@ -37,8 +37,8 @@ export default function BudgetsClient() {
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['categories'] })
     });
 
-    const createRuleMutation = useMutation<void, Error, { name: string; pattern: string; categoryId: string; priority: number }>({
-        mutationFn: (payload) => fetch('/api/merchant-rules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then((r) => r.json()),
+    const createRuleMutation = useMutation<void, Error, { name: string; pattern: string; categoryId: string }>(
+        {mutationFn: (payload) => fetch('/api/merchant-rules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then((r) => r.json()),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['merchant-rules'] })
     });
 
@@ -109,10 +109,25 @@ export default function BudgetsClient() {
         };
     }, []);
 
+    function tagsToRegex(tags: string[]): string {
+        if (!tags.length) return "";
+        // Guarda las frases tal cual, separadas por coma
+        return tags.map(t => t.trim()).filter(Boolean).join(",");
+    }
+
+    // Flag para bloquear doble submit por race entre click y submit
+    const ruleSubmitting = useRef(false);
     async function createRule() {
-        if (!ruleName || !rulePattern || !ruleCategoryId) return;
-        await createRuleMutation.mutateAsync({ name: ruleName, pattern: rulePattern, categoryId: ruleCategoryId, priority: rulePriority });
-        setRuleName(""); setRulePattern(""); setRuleCategoryId(""); setRulePriority(100);
+        if (createRuleMutation.status === 'pending' || ruleSubmitting.current) return;
+        if (!ruleName || ruleTags.length === 0 || !ruleCategoryId) return;
+        ruleSubmitting.current = true;
+        const pattern = tagsToRegex(ruleTags);
+        try {
+            await createRuleMutation.mutateAsync({ name: ruleName, pattern, categoryId: ruleCategoryId });
+            setRuleName(""); setRuleCategoryId(""); setRuleTags([]);
+        } finally {
+            ruleSubmitting.current = false;
+        }
     }
 
     return (
@@ -146,7 +161,7 @@ export default function BudgetsClient() {
                                         <input
                                             type="number"
                                             className="w-28 rounded-xl border px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500"
-                                            placeholder="Presupuesto"
+                                            placeholder="₡"
                                             onChange={(e) => scheduleSave(c.id, (e.target as HTMLInputElement).value)}
                                             onBlur={(e) => flushSave(c.id, (e.target as HTMLInputElement).value)}
                                         />
@@ -177,27 +192,53 @@ export default function BudgetsClient() {
             </div>
 
             <div className="rounded-2xl border bg-white p-4">
-                <div className="text-sm font-semibold text-slate-700">Reglas de comercio (regex)</div>
-                <p className="mt-1 text-sm text-slate-700">
-                    Ejemplos: <code className="text-xs">\\bUBER\\b|UBER RIDES</code>, <code className="text-xs">WALMART|AUTOMERCADO</code>
-                </p>
-
-                <div className="mt-4 grid gap-2 md:grid-cols-4">
-                    <input value={ruleName} onChange={(e) => setRuleName(e.target.value)} className="rounded-xl border px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500" placeholder="Nombre" />
-                    <input value={rulePattern} onChange={(e) => setRulePattern(e.target.value)} className="rounded-xl border px-3 py-2 text-sm text-slate-900 md:col-span-2 placeholder:text-slate-500" placeholder="Patrón (regex)" />
-                    <input value={String(rulePriority)} onChange={(e) => setRulePriority(Number(e.target.value))} className="rounded-xl border px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500" type="number" placeholder="Prioridad" />
-                    <div className="w-full">
-                        <Select
-                            value={ruleCategoryId}
-                            onChange={setRuleCategoryId}
-                            placeholder="Categoría"
-                            options={[...categories.map((c: Category) => ({ value: c.id, label: c.name }))]}
-                        />
-                    </div>
-                    <button onClick={createRule} disabled={createRuleMutation.status === 'pending'} className={`rounded-xl px-4 py-2 text-sm text-white md:col-span-1 ${createRuleMutation.status === 'pending' ? 'bg-gray-400 pointer-events-none' : 'bg-black'}`}>
-                        {createRuleMutation.status === 'pending' ? (<span className="flex items-center gap-2"><Spinner /> Creando…</span>) : 'Agregar regla'}
-                    </button>
-                </div>
+                <div className="text-sm font-semibold text-slate-700">Reglas de comercio</div>
+                                <form
+                                    className="mt-4 flex flex-col gap-2"
+                                    onSubmit={e => {
+                                        e.preventDefault();
+                                        if (createRuleMutation.status !== 'pending' && !ruleSubmitting.current) createRule();
+                                    }}
+                                >
+                                    <div className="flex flex-col gap-2">
+                                        <TagInput
+                                            value={ruleTags}
+                                            onChange={setRuleTags}
+                                            placeholder="Palabras clave (ej: uber, rides, auto mercado)"
+                                            disabled={createRuleMutation.status === 'pending'}
+                                        />
+                                        <div className="text-xs text-slate-500 mt-1">Las palabras/frases se buscarán como coincidencia exacta.</div>
+                                    </div>
+                                    <div className="flex flex-col md:flex-row gap-2 md:items-end mt-2">
+                                        <div className="flex-1 min-w-[120px]">
+                                            <input
+                                                value={ruleName}
+                                                onChange={e => setRuleName(e.target.value)}
+                                                className="rounded-xl border px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 w-full"
+                                                placeholder="Nombre"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                        <div className="flex-1 min-w-[120px]">
+                                            <Select
+                                                value={ruleCategoryId}
+                                                onChange={setRuleCategoryId}
+                                                placeholder="Categoría"
+                                                options={[...categories.map((c: Category) => ({ value: c.id, label: c.name }))]}
+                                            />
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            onClick={createRule}
+                                            disabled={createRuleMutation.status === 'pending' || ruleSubmitting.current}
+                                            className={`rounded-xl px-4 py-2 text-sm text-white md:ml-2 ${createRuleMutation.status === 'pending' ? 'bg-gray-400 pointer-events-none' : 'bg-black'}`}
+                                        >
+                                            {createRuleMutation.status === 'pending' ? (
+                                                <span className="flex items-center gap-2"><Spinner /> Creando…</span>
+                                            ) : 'Agregar regla'}
+                                        </button>
+                                    </div>
+                                </form>
 
                 <div className="mt-4 space-y-2">
                     {rules.map((r: Rule) => (
@@ -206,7 +247,6 @@ export default function BudgetsClient() {
                                 <div>
                                     <div className="text-sm font-medium text-slate-900">{r.name}</div>
                                     <div className="mt-1 text-xs text-slate-700">
-                                        <span className="mr-3">Prioridad <span className="font-medium text-slate-700">{r.priority}</span></span>
                                         <span className="text-slate-700">Categoría: <span className="font-medium">{r.category.name}</span></span>
                                     </div>
                                 </div>
