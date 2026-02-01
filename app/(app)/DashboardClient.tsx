@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MonthPicker from "@/components/MonthPicker";
 import Spinner from "@/components/Spinner";
 import { SpendPie } from "@/components/Charts";
-import Nav from "@/components/Nav";
 
 interface Summary {
     month: string;
