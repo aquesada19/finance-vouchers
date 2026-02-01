@@ -1,12 +1,12 @@
 import * as cheerio from "cheerio";
 
-export type ParsedVoucher = {
+export interface ParsedVoucher {
   merchant: string;
   occurredAt: Date;
   amount: number;      // int
   currency: string;    // "CRC" | "USD" etc
   meta?: Record<string, string>;
-};
+}
 
 function parseCRCAmount(text: string) {
   // Example: "CRC 3,490.00" -> 3490

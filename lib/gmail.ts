@@ -1,11 +1,10 @@
 import { prisma } from "./db";
-import quotedPrintable from "quoted-printable";
 
-type TokenInfo = {
+interface TokenInfo {
   access_token: string;
   expires_at?: number | null;
   refresh_token?: string | null;
-};
+}
 
 async function refreshAccessToken(refreshToken: string) {
   const params = new URLSearchParams();
@@ -78,7 +77,7 @@ export async function gmailGetMessageFull(userId: string, messageId: string) {
     headers: { Authorization: `Bearer ${token}` }
   });
   if (!res.ok) throw new Error(`gmailGetMessageFull error: ${await res.text()}`);
-  return res.json() as Promise<any>;
+  return res.json();
 }
 
 export function decodeBase64Url(data: string) {

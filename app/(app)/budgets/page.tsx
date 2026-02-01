@@ -6,9 +6,9 @@ import MonthPicker from "@/components/MonthPicker";
 import Spinner from "@/components/Spinner";
 import Select from "@/components/Select";
 
-type Category = { id: string; name: string };
-type Budget = { id: string; amount: number; currency: string; category: Category; categoryId: string; month: string };
-type Rule = { id: string; name: string; pattern: string; priority: number; category: Category; categoryId: string };
+interface Category { id: string; name: string }
+interface Budget { id: string; amount: number; currency: string; category: Category; categoryId: string; month: string }
+interface Rule { id: string; name: string; pattern: string; priority: number; category: Category; categoryId: string }
 
 export default function BudgetsPage() {
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));

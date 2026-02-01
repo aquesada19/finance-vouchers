@@ -7,14 +7,14 @@ import Spinner from "@/components/Spinner";
 import { SpendPie } from "@/components/Charts";
 import Nav from "@/components/Nav";
 
-type Summary = {
+interface Summary {
     month: string;
     currency: string;
     total: number;
     spendByCategory: Record<string, number>;
     budgetByCategory: Record<string, number>;
     transactionsCount: number;
-};
+}
 
 export default function DashboardPage() {
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));

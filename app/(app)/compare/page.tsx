@@ -5,11 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import Spinner from "@/components/Spinner";
 import MonthPicker from "@/components/MonthPicker";
 
-type Summary = {
+interface Summary {
     month: string;
     total: number;
     spendByCategory: Record<string, number>;
-};
+}
 
 
 export default function ComparePage() {
