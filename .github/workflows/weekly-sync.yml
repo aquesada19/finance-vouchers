@@ -1,0 +1,15 @@
+name: Weekly Sync
+
+on:
+  schedule:
+    - cron: "0 14 * * 1" # Mondays 14:00 UTC (ajustalo)
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call sync endpoint
+        run: |
+          curl -X POST "${{ secrets.APP_URL }}/api/sync/run" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}"

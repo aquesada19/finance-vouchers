@@ -1,0 +1,129 @@
+datasource db {
+    provider = "postgresql"
+}
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+model User {
+    id        String   @id @default(cuid())
+    email     String   @unique
+    name      String?
+    image     String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    accounts      Account[]
+    categories    Category[]
+    budgets       Budget[]
+    merchantRules MerchantRule[]
+    transactions  Transaction[]
+    gmailCursors  GmailCursor[]
+}
+
+model Account {
+    id                String  @id @default(cuid())
+    userId            String
+    type              String
+    provider          String
+    providerAccountId String
+    access_token      String?
+    refresh_token     String?
+    expires_at        Int?
+    token_type        String?
+    scope             String?
+    id_token          String?
+    session_state     String?
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([provider, providerAccountId])
+}
+
+model Category {
+    id        String   @id @default(cuid())
+    userId    String
+    name      String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    budgets       Budget[]
+    transactions  Transaction[]
+    merchantRules MerchantRule[]
+
+    @@unique([userId, name])
+}
+
+model Budget {
+    id         String @id @default(cuid())
+    userId     String
+    categoryId String
+    month      String // YYYY-MM
+    amount     Int // store in minor units? We'll store CRC as whole colones, USD cents if needed.
+    currency   String // "CRC" | "USD" etc
+
+    user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, categoryId, month, currency])
+}
+
+model MerchantRule {
+    id         String  @id @default(cuid())
+    userId     String
+    name       String
+    pattern    String // regex string
+    categoryId String
+    priority   Int     @default(100)
+    isActive   Boolean @default(true)
+
+    user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+    @@index([userId, priority])
+}
+
+model Transaction {
+    id                 String   @id @default(cuid())
+    userId             String
+    categoryId         String?
+    source             String // "gmail"
+    gmailMessageId     String
+    gmailThreadId      String?
+    emailSubject       String?
+    emailFrom          String?
+    occurredAt         DateTime
+    amount             Int
+    currency           String
+    merchantRaw        String
+    merchantNormalized String
+    fingerprint        String
+    metaJson           String? // store extra fields like authorization/reference
+
+    createdAt DateTime @default(now())
+
+    user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+    @@unique([userId, gmailMessageId])
+    @@unique([userId, fingerprint])
+    @@index([userId, occurredAt])
+    @@index([userId, currency])
+}
+
+model GmailCursor {
+    id         String   @id @default(cuid())
+    userId     String
+    label      String // usually "INBOX"
+    lastSynced DateTime @default(now())
+    // optional: store gmail historyId if you later move to incremental sync
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, label])
+}
