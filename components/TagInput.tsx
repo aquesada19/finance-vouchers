@@ -36,7 +36,7 @@ export default function TagInput({ value, onChange, placeholder, disabled }: Tag
 
   return (
     <div>
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
         <input
           ref={inputRef}
           type="text"
@@ -46,15 +46,15 @@ export default function TagInput({ value, onChange, placeholder, disabled }: Tag
           onKeyDown={handleInputKeyDown}
           placeholder={placeholder}
           disabled={disabled}
-          aria-label="Agregar tag"
+          aria-label="Añadir tag"
         />
         <button
           type="button"
-          className="rounded-xl px-3 py-2 text-sm text-white bg-black hover:bg-slate-800 disabled:bg-gray-400"
+          className="rounded-xl px-3 py-2 text-sm text-white bg-black hover:bg-slate-800 disabled:bg-gray-400 w-full sm:w-auto"
           onClick={addTag}
           disabled={disabled || !input.trim()}
         >
-          Agregar
+          Añadir
         </button>
       </div>
       <div className="flex flex-wrap gap-2 mt-2">
