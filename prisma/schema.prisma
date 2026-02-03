@@ -2,6 +2,11 @@ datasource db {
     provider = "postgresql"
 }
 
+enum Currency {
+    CRC
+    USD
+}
+
 generator client {
     provider = "prisma-client-js"
 }
@@ -58,12 +63,12 @@ model Category {
 }
 
 model Budget {
-    id         String @id @default(cuid())
+    id         String   @id @default(cuid())
     userId     String
     categoryId String
     month      String // YYYY-MM
     amount     Int // store in minor units? We'll store CRC as whole colones, USD cents if needed.
-    currency   String // "CRC" | "USD" etc
+    currency   Currency
 
     user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
     category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -96,7 +101,7 @@ model Transaction {
     emailFrom          String?
     occurredAt         DateTime
     amount             Int
-    currency           String
+    currency           Currency
     merchantRaw        String
     merchantNormalized String
     fingerprint        String

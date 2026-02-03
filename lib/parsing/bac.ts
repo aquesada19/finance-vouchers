@@ -1,20 +1,32 @@
+import { Currency } from "@prisma/client";
 import * as cheerio from "cheerio";
+import { USD_TO_CRC_EXCHANGE_RATE } from "../constants";
 
 export interface ParsedVoucher {
   merchant: string;
   occurredAt: Date;
   amount: number;      // int
-  currency: string;    // "CRC" | "USD" etc
+  currency: Currency;    // "CRC" | "USD" etc
   meta?: Record<string, string>;
 }
 
-function parseCRCAmount(text: string) {
-  // Example: "CRC 3,490.00" -> 3490
-  const m = text.match(/CRC\s*([\d,]+)(?:\.\d{2})?/i);
+function parseAmountAndCurrency(text: string): { amount: number; currency: Currency, originalCurrency?: Currency } | null {
+  // Support both CRC and USD, e.g. "CRC 3,490.00" or "USD 12.34" or "USD $12.34"
+  const m = text.match(/(CRC|USD)\s*\$?([\d,]+)(?:\.(\d{2}))?/i);
   if (!m) return null;
-  const n = Number(m[1].replace(/,/g, ""));
-  if (!Number.isFinite(n)) return null;
-  return n;
+  const currency = m[1].toUpperCase() as Currency;
+  const intPart = m[2].replace(/,/g, "");
+  const decPart = m[3] ? m[3] : "00";
+  let amount: number;
+  if (currency === "USD") {
+    let usdCents = Math.round(Number(`${intPart}.${decPart}`) * 100); // USD in cents
+    amount = Math.round((usdCents / 100) * USD_TO_CRC_EXCHANGE_RATE);
+    return { amount, currency: "CRC", originalCurrency: "USD" };
+  } else {
+    amount = Number(intPart); // CRC as integer
+  }
+  if (!Number.isFinite(amount)) return null;
+  return { amount, currency };
 }
 
 export function tryParseBAC(htmlOrText: { html?: string; text?: string }): ParsedVoucher | null {
@@ -50,20 +62,20 @@ export function tryParseBAC(htmlOrText: { html?: string; text?: string }): Parse
         const day = Number(m2[2]);
         const year = Number(m2[3]);
         const [hh, mm] = time.split(":").map(Number);
-        occurredAt = new Date(year, mon, day, hh, mm, 0, 0);
+        occurredAt = new Date(Date.UTC(year, mon, day, hh, mm, 0, 0));
       }
     }
 
-    // Monto: CRC 3,490.00
-    const amount = parseCRCAmount(bodyText);
-    if (merchant && occurredAt && amount != null) {
+    // Monto: CRC 3,490.00 or USD 12.34
+    const amt = parseAmountAndCurrency(bodyText);
+    if (merchant && occurredAt && amt != null) {
       const meta: Record<string, string> = {};
       const auth = bodyText.match(/Autorizaci[oó]n:\s*([0-9]+)/i)?.[1];
       const ref = bodyText.match(/Referencia:\s*([0-9]+)/i)?.[1];
       if (auth) meta.authorization = auth;
       if (ref) meta.reference = ref;
-
-      return { merchant, occurredAt, amount, currency: "CRC", meta };
+      if (amt.originalCurrency) meta.originalCurrency = amt.originalCurrency;
+      return { merchant, occurredAt, amount: amt.amount, currency: amt.currency, meta };
     }
   }
 
@@ -71,8 +83,8 @@ export function tryParseBAC(htmlOrText: { html?: string; text?: string }): Parse
   if (text) {
     const flat = text.replace(/\s+/g, " ").trim();
     const merchant = flat.match(/Comercio:\s*([A-Z0-9* ._-]+)/i)?.[1]?.trim();
-    const amount = parseCRCAmount(flat);
-    if (merchant && amount != null) {
+    const amt = parseAmountAndCurrency(flat);
+    if (merchant && amt != null) {
       // If no date is parseable, skip (we prefer not to import ambiguous data)
       return null;
     }

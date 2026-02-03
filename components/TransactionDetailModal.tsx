@@ -127,7 +127,15 @@ export default function TransactionDetailModal({ open, onClose, transaction }: T
               <div><span className="font-medium">Comercio:</span> {transaction.merchantRaw ?? '-'}</div>
               <div><span className="font-medium">Fuente:</span> {transaction.source ?? '-'}</div>
               <div><span className="font-medium">Email asunto:</span> {transaction.emailSubject ?? '-'}</div>
-              <div><span className="font-medium">Email de:</span> {transaction.emailFrom ?? '-'}</div>
+              <div>
+                <span className="font-medium">Email de:</span>
+                <span
+                  className="inline-block break-all align-middle"
+                  title={transaction.emailFrom ?? '-'}
+                >
+                  {transaction.emailFrom ?? '-'}
+                </span>
+              </div>
               <div><span className="font-medium">ID Gmail:</span> {transaction.gmailMessageId ?? '-'}</div>
               <div><span className="font-medium">ID Thread:</span> {transaction.gmailThreadId ?? '-'}</div>
               <div><span className="font-medium">Fingerprint:</span> {transaction.fingerprint ?? '-'}</div>

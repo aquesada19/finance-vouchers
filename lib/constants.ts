@@ -1,0 +1,3 @@
+const USD_TO_CRC_EXCHANGE_RATE = 500;
+
+export { USD_TO_CRC_EXCHANGE_RATE };

@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+import { Currency } from "@prisma/client";
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -22,7 +23,7 @@ const UpsertSchema = z.object({
   categoryId: z.string().min(1),
   month: z.string().regex(/^\d{4}-\d{2}$/),
   amount: z.number().int().nonnegative(),
-  currency: z.string().min(3).max(3).default("CRC")
+  currency: z.custom<Currency>().default("CRC")
 });
 
 export async function POST(req: Request) {

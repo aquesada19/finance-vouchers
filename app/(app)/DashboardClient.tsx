@@ -12,21 +12,12 @@ import MonthPicker from "@/components/MonthPicker";
 import Spinner from "@/components/Spinner";
 import { SpendPie } from "@/components/Charts";
 
-interface Summary {
-    month: string;
-    currency: string;
-    total: number;
-    spendByCategory: Record<string, number>;
-    budgetByCategory: Record<string, number>;
-    transactionsCount: number;
-}
-
 export default function DashboardPage() {
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
     const [showFilters, setShowFilters] = useState(false);
     const queryClient = useQueryClient();
-    const [filters, setFilters] = useState({ dateFrom: "", dateTo: "", merchant: "", minAmount: "", maxAmount: "", categoryId: "", orderBy: "occurredAt", orderDir: "desc" });
-    const { data, isLoading: summaryLoading, isFetching: summaryFetching } = useQuery<any, Error>({
+    const [filters, setFilters] = useState({ merchant: "", minAmount: "", maxAmount: "", categoryId: "", orderBy: "occurredAt", orderDir: "desc" });
+    const { data, isLoading: summaryLoading} = useQuery<any, Error>({
         queryKey: ['summary', month],
         queryFn: () => fetch(`/api/summary?month=${month}`).then((r) => r.json())
     });
@@ -38,7 +29,10 @@ export default function DashboardPage() {
                 body: JSON.stringify({ month })
             });
         },
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['summary', month] })
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['summary', month] });
+            queryClient.invalidateQueries({ queryKey: ['transactions', month] });
+        }
     });
     async function manualSync() {
         await syncMutation.mutateAsync();
@@ -60,8 +54,6 @@ export default function DashboardPage() {
         params.set("month", month);
         params.set("take", String(take));
         params.set("skip", String((page - 1) * take));
-        if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
-        if (filters.dateTo) params.set("dateTo", filters.dateTo);
         if (filters.merchant) params.set("merchant", filters.merchant);
         if (filters.minAmount) params.set("minAmount", filters.minAmount);
         if (filters.maxAmount) params.set("maxAmount", filters.maxAmount);
@@ -81,7 +73,7 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white text-slate-900">
-            <main className="mx-auto max-w-6xl p-4 md:p-6">
+            <main className="mx-auto max-w-6xl md:p-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
                     <div>
                         <h1 className="text-2xl font-bold">Inicio</h1>

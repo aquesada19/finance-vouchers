@@ -17,9 +17,9 @@ export async function GET(req: Request) {
     let dateFilter: any = {};
     let from: Date | undefined, to: Date | undefined;
     if (month) {
-        from = new Date(month + "-01T00:00:00.000Z");
-        to = new Date(from);
-        to.setMonth(to.getMonth() + 1);
+        const [year, monthNum] = month.split('-').map(Number);
+        from = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0, 0));
+        to = new Date(Date.UTC(year, monthNum, 1, 0, 0, 0, 0));
         dateFilter.occurredAt = { gte: from, lt: to };
     }
     // Rango de fechas dentro del mes
