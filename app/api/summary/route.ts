@@ -30,10 +30,6 @@ export async function GET(req: Request) {
   for (const t of tx) {
     const name = t.categoryId ? (catMap.get(t.categoryId) ?? "Uncategorized") : "Uncategorized";
     let amountCRC = t.amount;
-    if (t.currency === "USD") {
-      // Convert cents to dollars, then to CRC
-      amountCRC = currencyjs(t.amount).divide(100).multiply(USD_TO_CRC_EXCHANGE_RATE).value;
-    }
     spendByCategory[name] = (spendByCategory[name] ?? 0) + amountCRC;
     total += amountCRC;
   }
